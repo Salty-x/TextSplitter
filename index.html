@@ -111,30 +111,6 @@
         margin-top: 5px;
       }
 
-      .button-group {
-        text-align: center;
-        margin-top: 30px;
-      }
-
-      .button {
-        padding: 12px 25px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 17px;
-        transition: background-color 0.2s ease, transform 0.1s ease;
-      }
-
-      .button:hover {
-        background-color: #218838;
-      }
-
-      .button:active {
-        transform: scale(0.98);
-      }
-
       #chunkedTextContainer {
         margin-top: 40px;
         border-top: 1px solid #eee;
@@ -143,10 +119,10 @@
 
       .chunk-container {
         margin-bottom: 25px;
-        padding: 15px;
-        display: flex;
-        align-items: center;
         background-color: #fcfcfc;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        padding: 15px;
       }
 
       .chunk-header {
@@ -154,16 +130,17 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
+        width: 100%;
       }
 
       .chunk-title {
         font-weight: bold;
         font-size: 16px;
-        margin-right: 10px;
+        margin-right: 15px;
       }
 
       .copy-button {
-        padding: 5px 8px;
+        padding: 5px 10px;
         background-color: #007bff;
         color: white;
         border: none;
@@ -173,7 +150,7 @@
         align-items: center;
         font-size: 14px;
         transition: background-color 0.2s ease;
-        margin-left: 8px;
+        flex-shrink: 0; /* Prevents the button from shrinking */
       }
 
       .copy-button:hover {
@@ -196,7 +173,7 @@
 
       .chunk-textarea {
         width: 100%;
-        height: 120px;
+        height: 100px; /* Reduced default height */
         padding: 10px;
         font-size: 14px;
         line-height: 1.5;
@@ -217,16 +194,16 @@
         <input type="file" id="epubInput" accept=".epub, .txt" />
       </div>
 
-      <div id="tocContainer">
+      <div id="tocContainer" style="display: none">
         <label>Table of Contents:</label>
         <ul id="tocList"></ul>
       </div>
 
       <div class="input-group">
-        <label for="chapterContent">Text Content:</label>
+        <label for="chapterContent">Text Content (Press Enter to Split):</label>
         <textarea
           id="chapterContent"
-          placeholder="Paste text or load from file..."
+          placeholder="Paste text here, or load from a file. Then press Enter to split the text into chunks based on your settings."
         ></textarea>
         <div id="charCount">Total characters: 0</div>
       </div>
@@ -272,7 +249,7 @@
           font-size: 16px;
         "
       >
-        Split Text
+        Split Text Manually
       </button>
 
       <div id="chunkedTextContainer"></div>
@@ -281,14 +258,13 @@
     <script>
       let book;
       let lastClickedButton = null;
-      let originalText = null; // Store the original unformatted text
+      let originalText = null;
 
       function updateButtonState(button) {
         if (lastClickedButton && lastClickedButton !== button) {
           lastClickedButton.classList.remove('green');
           lastClickedButton.querySelector('.tick').style.display = 'none';
         }
-
         button.classList.add('green');
         button.querySelector('.tick').style.display = 'inline-block';
         lastClickedButton = button;
@@ -297,7 +273,7 @@
       function updateCharCount() {
         const text = document.getElementById('chapterContent').value;
         document.getElementById(
-          'charCount',
+          'charCount'
         ).textContent = `Total characters: ${text.length}`;
       }
 
@@ -310,12 +286,8 @@
           document.getElementById('chapterContent');
 
         maxCharsInput.value = localStorage.getItem('maxChars') || '1800';
-        const addToTopDefault = ''; // Keep this field blank by default
-        addToTopInput.value =
-          localStorage.getItem('addToTop') || addToTopDefault;
-        const addToBottomDefault = '';
-        addToBottomInput.value =
-          localStorage.getItem('addToBottom') || addToBottomDefault;
+        addToTopInput.value = localStorage.getItem('addToTop') || '';
+        addToBottomInput.value = localStorage.getItem('addToBottom') || '';
 
         const savedFormat = localStorage.getItem('formatSelect');
         if (savedFormat) {
@@ -327,24 +299,28 @@
         maxCharsInput.addEventListener('input', () => {
           localStorage.setItem('maxChars', maxCharsInput.value);
         });
-
         addToTopInput.addEventListener('input', () => {
           localStorage.setItem('addToTop', addToTopInput.value);
         });
-
         addToBottomInput.addEventListener('input', () => {
           localStorage.setItem('addToBottom', addToBottomInput.value);
         });
-
         formatSelect.addEventListener('change', () => {
           localStorage.setItem('formatSelect', formatSelect.value);
           formatText();
         });
 
         chapterContentTextArea.addEventListener('input', updateCharCount);
+        
+        // --- NEW: Event listener for Enter key ---
+        chapterContentTextArea.addEventListener('keydown', function (event) {
+          // Check if Enter key was pressed without the Shift key
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // Prevent the default action (adding a new line)
+            chunkText(); // Trigger the text splitting
+          }
+        });
 
-        // Initial format and char count on load
-        formatText();
         updateCharCount();
       });
 
@@ -352,12 +328,17 @@
         .getElementById('epubInput')
         .addEventListener('change', async function (event) {
           const file = event.target.files[0];
+          if (!file) return;
+
           const fileName = file.name.toLowerCase();
+          const tocContainer = document.getElementById('tocContainer');
+          const tocList = document.getElementById('tocList');
+          
           try {
             if (fileName.endsWith('.epub')) {
+              tocContainer.style.display = 'block';
               book = ePub(file);
               const toc = await book.loaded.navigation;
-              const tocList = document.getElementById('tocList');
               tocList.innerHTML = '';
 
               function addTocItems(items, parentElement) {
@@ -375,9 +356,9 @@
                   }
                 });
               }
-
               addTocItems(toc, tocList);
             } else if (fileName.endsWith('.txt')) {
+              tocContainer.style.display = 'none';
               const reader = new FileReader();
               reader.onload = function (e) {
                 originalText = e.target.result;
@@ -388,7 +369,7 @@
               reader.readAsText(file);
             } else {
               alert(
-                'Unsupported file type. Please upload .epub or .txt files.',
+                'Unsupported file type. Please upload .epub or .txt files.'
               );
             }
           } catch (error) {
@@ -423,35 +404,27 @@
         const text = document.getElementById('chapterContent').value;
         const maxChars = parseInt(document.getElementById('maxChars').value);
         const addToTop = document.getElementById('addToTop').value.trim();
-        const addToBottom = document
-          .getElementById('addToBottom')
-          .value.trim();
+        const addToBottom = document.getElementById('addToBottom').value.trim();
 
         const paragraphs = text.split('\n');
-        const chunks = [];
+        let chunks = [];
         let currentChunk = '';
 
         for (const paragraph of paragraphs) {
-          // Check if adding the paragraph plus newline would exceed the max characters
-          if (currentChunk.length + paragraph.length + 2 <= maxChars) {
-            // +2 for newline
-            currentChunk += paragraph + '\n';
-          } else {
-            // Push the current chunk (trimmed to remove trailing newline from loop)
+          if (currentChunk.length + paragraph.length + 1 > maxChars && currentChunk.length > 0) {
             chunks.push(currentChunk.trim());
-            // Start a new chunk with the current paragraph plus a newline
-            currentChunk = paragraph + '\n';
+            currentChunk = '';
           }
+          currentChunk += (currentChunk ? '\n' : '') + paragraph;
         }
 
-        // Push the last chunk if it's not empty
         if (currentChunk.trim()) {
           chunks.push(currentChunk.trim());
         }
 
         const totalChunks = chunks.length;
         const chunkedTextContainer = document.getElementById(
-          'chunkedTextContainer',
+          'chunkedTextContainer'
         );
         chunkedTextContainer.innerHTML = '';
 
@@ -459,14 +432,13 @@
 
         chunks.forEach((chunk, index) => {
           const partNumber = String(index + 1).padStart(digits, '0');
-          let finalChunk =
-            (
-              addToTop.replace('$X', partNumber).replace('$Y', totalChunks) +
-              '\n\n' +
-              chunk +
-              '\n\n' +
-              addToBottom.replace('$X', partNumber).replace('$Y', totalChunks)
-            ).trim() + '\n'; // Add a newline at the end for easier copying
+          let finalChunk = [
+            addToTop.replace('$X', partNumber).replace('$Y', totalChunks),
+            chunk,
+            addToBottom.replace('$X', partNumber).replace('$Y', totalChunks),
+          ]
+            .filter(Boolean) // Remove empty strings
+            .join('\n\n');
 
           const chunkContainer = document.createElement('div');
           chunkContainer.classList.add('chunk-container');
@@ -476,43 +448,48 @@
 
           const chunkTitle = document.createElement('div');
           chunkTitle.classList.add('chunk-title');
-          chunkTitle.textContent = `Part ${partNumber}`;
+          chunkTitle.textContent = `Part ${partNumber} of ${totalChunks}`;
 
           const copyButton = document.createElement('button');
           copyButton.classList.add('copy-button');
-          copyButton.innerHTML =
-            'Copy to Clipboard<span class="tick">✔️</span>';
+          copyButton.innerHTML = 'Copy <span class="tick">✔</span>';
+          
+          const chunkTextarea = document.createElement('textarea');
+          chunkTextarea.classList.add('chunk-textarea');
+          chunkTextarea.value = finalChunk;
+          chunkTextarea.readOnly = true;
+          
           copyButton.addEventListener('click', function () {
             copyToClipboard(chunkTextarea.value);
             updateButtonState(copyButton);
           });
 
+          // --- NEW: Changed layout structure ---
           chunkHeader.appendChild(chunkTitle);
-
-          const chunkTextarea = document.createElement('textarea');
-          chunkTextarea.classList.add('chunk-textarea');
-          chunkTextarea.value = finalChunk;
-          chunkTextarea.readOnly = true;
+          chunkHeader.appendChild(copyButton); // Button is now in the header
 
           chunkContainer.appendChild(chunkHeader);
           chunkContainer.appendChild(chunkTextarea);
-          chunkContainer.appendChild(copyButton);
+
           chunkedTextContainer.appendChild(chunkContainer);
         });
       }
 
       function copyToClipboard(text) {
-        const hiddenInput = document.createElement('textarea');
-        hiddenInput.value = text;
-        document.body.appendChild(hiddenInput);
-        hiddenInput.select();
-        try {
-          document.execCommand('copy');
-        } catch (err) {
+        navigator.clipboard.writeText(text).catch((err) => {
           console.error('Copy to clipboard failed:', err);
-        }
-
-        document.body.removeChild(hiddenInput);
+          // Fallback for older browsers
+          const hiddenInput = document.createElement('textarea');
+          hiddenInput.value = text;
+          document.body.appendChild(hiddenInput);
+          hiddenInput.select();
+          try {
+            document.execCommand('copy');
+          } catch (err) {
+            console.error('Fallback copy failed:', err);
+          }
+          document.body.removeChild(hiddenInput);
+        });
       }
 
       function formatText() {
@@ -520,23 +497,22 @@
         const textArea = document.getElementById('chapterContent');
 
         if (originalText === null && textArea.value) {
-          // If originalText is null but textarea has content (e.g. pasted)
           originalText = textArea.value;
+        } else if (!originalText && !textArea.value) {
+            return;
         }
 
-        if (formatSelect.value === 'pretty' && originalText) {
-          const paragraphs = originalText.split('\n');
-          const formattedText = paragraphs
+        if (formatSelect.value === 'pretty') {
+          const formattedText = originalText
+            .split('\n')
             .map((p) => p.trim())
             .filter((p) => p)
             .join('\n\n');
           textArea.value = formattedText;
-        } else if (originalText) {
-          // "as-is" or originalText is not yet set but we have it
+        } else {
           textArea.value = originalText;
         }
-        // If originalText is null and textarea is empty, do nothing.
-        updateCharCount(); // Update char count after formatting
+        updateCharCount();
       }
     </script>
   </body>
