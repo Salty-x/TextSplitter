@@ -81,6 +81,7 @@
         align-items: center;
         gap: 15px;
         margin-top: 20px;
+        flex-wrap: wrap;
       }
 
       .split-button {
@@ -200,6 +201,7 @@
     <script>
       let book;
       let lastCopyAllTimeout;
+      let originalText = null;
 
       function updateCharCount() {
         const text = document.getElementById('chapterContent').value;
@@ -240,14 +242,12 @@
         });
 
         document.getElementById('copyAllButton').addEventListener('click', copyAllChunks);
-
         updateCharCount();
       });
 
       document
         .getElementById('epubInput')
         .addEventListener('change', async function (event) {
-          // EPUB/TXT loading logic remains the same
           const file = event.target.files[0];
           if (!file) return;
 
@@ -259,7 +259,25 @@
               tocContainer.style.display = 'block';
               book = ePub(file);
               const toc = await book.loaded.navigation;
-              // ... EPUB TOC generation logic (omitted for brevity, no changes needed)
+              // This function populates the Table of Contents from an EPUB
+              function createToc(items, parentElement) {
+                  const list = document.createElement('ul');
+                  items.forEach(item => {
+                      const li = document.createElement('li');
+                      li.textContent = item.label.trim();
+                      li.dataset.href = item.href;
+                      li.onclick = loadChapter;
+                      if(item.subitems && item.subitems.length > 0) {
+                          createToc(item.subitems, li);
+                      }
+                      list.appendChild(li);
+                  });
+                  parentElement.appendChild(list);
+              }
+              const tocList = document.getElementById('tocList');
+              tocList.innerHTML = '';
+              createToc(toc, tocList);
+
             } else if (fileName.endsWith('.txt')) {
               tocContainer.style.display = 'none';
               const reader = new FileReader();
@@ -271,15 +289,26 @@
               };
               reader.readAsText(file);
             } else {
-              alert(
-                'Unsupported file type. Please upload .epub or .txt files.'
-              );
+              alert('Unsupported file type. Please upload .epub or .txt files.');
             }
           } catch (error) {
             console.error('Error loading file:', error);
             alert('Failed to load file. See console for details.');
           }
         });
+      
+      async function loadChapter(event) {
+          const selectedHref = event.target.dataset.href;
+          try {
+            const chapter = await book.load(selectedHref);
+            originalText = chapter.body.innerText.trim();
+            document.getElementById('chapterContent').value = originalText;
+            formatText();
+            updateCharCount();
+          } catch (error) {
+            console.error('Error loading chapter:', error);
+          }
+      }
 
       function chunkText() {
         const text = document.getElementById('chapterContent').value;
@@ -304,7 +333,7 @@
           chunks.push(currentChunk.trim());
         }
 
-        chunkedTextContainer.innerHTML = ''; // Clear previous results
+        chunkedTextContainer.innerHTML = '';
 
         if (chunks.length > 0) {
             chunkCounter.textContent = `${chunks.length} Chunks Generated`;
@@ -367,15 +396,14 @@
       function formatText() {
         const formatSelect = document.getElementById('formatSelect');
         const textArea = document.getElementById('chapterContent');
-
-        let originalText = textArea.value; // Use current value if no loaded text
-        const loadedText = textArea.dataset.originalText;
-        if (loadedText) originalText = loadedText;
-
+        
+        if (!originalText) {
+            originalText = textArea.value;
+        }
 
         if (formatSelect.value === 'pretty') {
-          const formattedText = originalText
-            .split('\n')
+          const paragraphs = originalText.split('\n');
+          const formattedText = paragraphs
             .map((p) => p.trim())
             .filter((p) => p)
             .join('\n\n');
