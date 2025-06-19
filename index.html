@@ -76,14 +76,6 @@
         margin-top: 5px;
       }
 
-      .actions-container {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-top: 20px;
-        flex-wrap: wrap;
-      }
-
       .split-button {
         padding: 10px 20px;
         background-color: #28a745;
@@ -92,28 +84,6 @@
         border-radius: 4px;
         cursor: pointer;
         font-size: 16px;
-        white-space: nowrap;
-      }
-
-      #chunkCounter {
-        font-weight: bold;
-        color: #333;
-        white-space: nowrap;
-      }
-
-      #copyAllButton {
-        padding: 8px 15px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 15px;
-        display: none; /* Hidden by default */
-        white-space: nowrap;
-      }
-      #copyAllButton.copied {
-          background-color: #218838;
       }
 
       #chunkedTextContainer {
@@ -131,12 +101,36 @@
       }
 
       .chunk-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 10px;
       }
 
       .chunk-title {
         font-weight: bold;
         font-size: 16px;
+        margin-right: 15px;
+      }
+
+      .copy-button {
+        padding: 5px 10px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s ease;
+        flex-shrink: 0;
+      }
+
+      .copy-button:hover {
+        background-color: #0056b3;
+      }
+
+      .copy-button.copied {
+        background-color: #218838;
       }
 
       .chunk-textarea {
@@ -187,27 +181,40 @@
         </select>
       </div>
       
-      <div class="actions-container">
-        <button onclick="chunkText()" class="split-button">
-          Split Text
-        </button>
-        <span id="chunkCounter"></span>
-        <button id="copyAllButton">Copy All</button>
-      </div>
+      <button onclick="chunkText()" class="split-button">
+        Split Text
+      </button>
 
       <div id="chunkedTextContainer"></div>
     </div>
 
     <script>
       let book;
-      let lastCopyAllTimeout;
       let originalText = null;
+      let lastClickedCopyButton = null;
 
       function updateCharCount() {
         const text = document.getElementById('chapterContent').value;
         document.getElementById(
           'charCount'
         ).textContent = `Total characters: ${text.length}`;
+      }
+
+      function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(() => {
+          if (lastClickedCopyButton && lastClickedCopyButton !== button) {
+            lastClickedCopyButton.classList.remove('copied');
+            lastClickedCopyButton.textContent = 'Copy';
+          }
+          
+          button.textContent = 'Copied! ✔';
+          button.classList.add('copied');
+          lastClickedCopyButton = button;
+
+        }).catch(err => {
+          console.error('Failed to copy text:', err);
+          alert('Could not copy text.');
+        });
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -240,61 +247,47 @@
             chunkText();
           }
         });
-
-        document.getElementById('copyAllButton').addEventListener('click', copyAllChunks);
         updateCharCount();
       });
 
       document
         .getElementById('epubInput')
         .addEventListener('change', async function (event) {
-          const file = event.target.files[0];
-          if (!file) return;
-
-          const fileName = file.name.toLowerCase();
-          const tocContainer = document.getElementById('tocContainer');
-          
-          try {
-            if (fileName.endsWith('.epub')) {
-              tocContainer.style.display = 'block';
-              book = ePub(file);
-              const toc = await book.loaded.navigation;
-              // This function populates the Table of Contents from an EPUB
-              function createToc(items, parentElement) {
-                  const list = document.createElement('ul');
-                  items.forEach(item => {
-                      const li = document.createElement('li');
-                      li.textContent = item.label.trim();
-                      li.dataset.href = item.href;
-                      li.onclick = loadChapter;
-                      if(item.subitems && item.subitems.length > 0) {
-                          createToc(item.subitems, li);
-                      }
-                      list.appendChild(li);
-                  });
-                  parentElement.appendChild(list);
-              }
-              const tocList = document.getElementById('tocList');
-              tocList.innerHTML = '';
-              createToc(toc, tocList);
-
-            } else if (fileName.endsWith('.txt')) {
-              tocContainer.style.display = 'none';
-              const reader = new FileReader();
-              reader.onload = function (e) {
-                originalText = e.target.result;
-                document.getElementById('chapterContent').value = originalText;
-                formatText();
-                updateCharCount();
-              };
-              reader.readAsText(file);
-            } else {
-              alert('Unsupported file type. Please upload .epub or .txt files.');
+            // This logic is for loading EPUB and TXT files and remains the same.
+            const file = event.target.files[0];
+            if (!file) return;
+            const fileName = file.name.toLowerCase();
+            const tocContainer = document.getElementById('tocContainer');
+            try {
+                if (fileName.endsWith('.epub')) {
+                    tocContainer.style.display = 'block';
+                    book = ePub(file);
+                    const toc = await book.loaded.navigation;
+                    const tocList = document.createElement('ul');
+                    tocContainer.innerHTML = '';
+                    tocContainer.appendChild(tocList);
+                    toc.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item.label.trim();
+                        li.dataset.href = item.href;
+                        li.onclick = loadChapter;
+                        tocList.appendChild(li);
+                    });
+                } else if (fileName.endsWith('.txt')) {
+                    tocContainer.style.display = 'none';
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        originalText = e.target.result;
+                        document.getElementById('chapterContent').value = originalText;
+                        formatText();
+                    };
+                    reader.readAsText(file);
+                } else {
+                    alert('Unsupported file type.');
+                }
+            } catch (error) {
+                console.error('Error loading file:', error);
             }
-          } catch (error) {
-            console.error('Error loading file:', error);
-            alert('Failed to load file. See console for details.');
-          }
         });
       
       async function loadChapter(event) {
@@ -304,7 +297,6 @@
             originalText = chapter.body.innerText.trim();
             document.getElementById('chapterContent').value = originalText;
             formatText();
-            updateCharCount();
           } catch (error) {
             console.error('Error loading chapter:', error);
           }
@@ -314,8 +306,6 @@
         const text = document.getElementById('chapterContent').value;
         const maxChars = parseInt(document.getElementById('maxChars').value);
         const chunkedTextContainer = document.getElementById('chunkedTextContainer');
-        const chunkCounter = document.getElementById('chunkCounter');
-        const copyAllButton = document.getElementById('copyAllButton');
 
         const paragraphs = text.split('\n');
         let chunks = [];
@@ -333,15 +323,8 @@
           chunks.push(currentChunk.trim());
         }
 
-        chunkedTextContainer.innerHTML = '';
-
-        if (chunks.length > 0) {
-            chunkCounter.textContent = `${chunks.length} Chunks Generated`;
-            copyAllButton.style.display = 'inline-block';
-        } else {
-            chunkCounter.textContent = '';
-            copyAllButton.style.display = 'none';
-        }
+        chunkedTextContainer.innerHTML = ''; // Clear previous results
+        lastClickedCopyButton = null; // Reset the last clicked button
 
         chunks.forEach((chunk, index) => {
           const chunkContainer = document.createElement('div');
@@ -354,42 +337,23 @@
           chunkTitle.classList.add('chunk-title');
           chunkTitle.textContent = `Part ${index + 1} of ${chunks.length}`;
           
+          const copyButton = document.createElement('button');
+          copyButton.classList.add('copy-button');
+          copyButton.textContent = 'Copy';
+          
           const chunkTextarea = document.createElement('textarea');
           chunkTextarea.classList.add('chunk-textarea');
           chunkTextarea.value = chunk;
           chunkTextarea.readOnly = true;
+
+          copyButton.addEventListener('click', () => copyToClipboard(chunkTextarea.value, copyButton));
           
           chunkHeader.appendChild(chunkTitle);
+          chunkHeader.appendChild(copyButton); // Add copy button to header
           chunkContainer.appendChild(chunkHeader);
           chunkContainer.appendChild(chunkTextarea);
 
           chunkedTextContainer.appendChild(chunkContainer);
-        });
-      }
-
-      function copyAllChunks() {
-        const allTextAreas = document.querySelectorAll('.chunk-textarea');
-        if (allTextAreas.length === 0) return;
-
-        const separator = '\n\n\n---\n\n\n';
-        const combinedText = Array.from(allTextAreas)
-          .map(textarea => textarea.value)
-          .join(separator);
-        
-        navigator.clipboard.writeText(combinedText).then(() => {
-            const copyButton = document.getElementById('copyAllButton');
-            copyButton.textContent = 'Copied! ✔';
-            copyButton.classList.add('copied');
-
-            if (lastCopyAllTimeout) clearTimeout(lastCopyAllTimeout);
-
-            lastCopyAllTimeout = setTimeout(() => {
-                copyButton.textContent = 'Copy All';
-                copyButton.classList.remove('copied');
-            }, 2000);
-        }).catch(err => {
-          console.error('Failed to copy all chunks:', err);
-          alert('Could not copy text. See console for details.');
         });
       }
 
