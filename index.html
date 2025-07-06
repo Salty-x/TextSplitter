@@ -3,9 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EPUB Text Chunker</title>
-    <script src="./script/jszip.min.js"></script>
-    <script src="./script/epub.min.js"></script>
+    <title>Text Cleaner & Chunker</title>
     <style>
       body {
         font-family: 'Roboto', sans-serif;
@@ -14,13 +12,6 @@
         background-color: #f4f7f6;
         color: #333;
       }
-
-      h1 {
-        text-align: center;
-        color: #007bff;
-        margin-bottom: 30px;
-      }
-
       .container {
         max-width: 900px;
         margin: 0 auto;
@@ -29,20 +20,23 @@
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       }
-
+      h1 {
+        text-align: center;
+        color: #007bff;
+        margin-bottom: 30px;
+      }
       .input-group {
         margin-bottom: 20px;
       }
-
       .input-group label {
         display: block;
         margin-bottom: 8px;
         font-weight: bold;
         color: #555;
       }
-
       input[type='file'],
       input[type='number'],
+      input[type='text'],
       select,
       textarea {
         padding: 10px 12px;
@@ -53,29 +47,16 @@
         box-sizing: border-box;
         font-family: 'Roboto', sans-serif;
       }
-
       textarea {
         min-height: 100px;
         resize: vertical;
       }
-
-      #tocContainer {
-        margin-bottom: 20px;
-        max-height: 250px;
-        overflow-y: auto;
-        border: 1px solid #ccc;
-        padding: 10px;
-        border-radius: 4px;
-        background-color: #f9f9f9;
-      }
-
       #charCount {
         font-size: 13px;
         color: #555;
         text-align: right;
         margin-top: 5px;
       }
-
       .split-button {
         padding: 10px 20px;
         background-color: #28a745;
@@ -85,13 +66,11 @@
         cursor: pointer;
         font-size: 16px;
       }
-
       #chunkedTextContainer {
         margin-top: 25px;
         border-top: 1px solid #eee;
         padding-top: 20px;
       }
-
       .chunk-container {
         margin-bottom: 20px;
         background-color: #fcfcfc;
@@ -99,20 +78,17 @@
         border-radius: 4px;
         padding: 15px;
       }
-
       .chunk-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
       }
-
       .chunk-title {
         font-weight: bold;
         font-size: 16px;
         margin-right: 15px;
       }
-
       .copy-button {
         padding: 5px 10px;
         background-color: #007bff;
@@ -124,15 +100,12 @@
         transition: background-color 0.2s ease;
         flex-shrink: 0;
       }
-
       .copy-button:hover {
         background-color: #0056b3;
       }
-
       .copy-button.copied {
         background-color: #218838;
       }
-
       .chunk-textarea {
         width: 100%;
         height: 100px;
@@ -142,30 +115,59 @@
         border: 1px solid #ddd;
         border-radius: 4px;
         resize: vertical;
-        overflow-y: auto;
         background-color: #fff;
+      }
+      .trim-options {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .trim-options .input-group {
+          flex-grow: 1;
+          min-width: 250px;
+      }
+      .regex-option {
+          display: flex;
+          align-items: center;
+          margin-top: 8px;
+          font-size: 14px;
+      }
+      .regex-option input {
+          width: auto;
+          margin-right: 8px;
       }
     </style>
   </head>
-
   <body>
     <div class="container">
-      <h1>EPUB Text Chunker</h1>
-      <div class="input-group">
-        <label for="epubInput">Select an EPUB or txt file:</label>
-        <input type="file" id="epubInput" accept=".epub, .txt" />
-      </div>
-
-      <div id="tocContainer" style="display: none">
-        </div>
+      <h1>Text Cleaner & Chunker</h1>
 
       <div class="input-group">
-        <label for="chapterContent">Text Content (Press Enter to Split):</label>
+        <label for="chapterContent">Text Content:</label>
         <textarea
           id="chapterContent"
-          placeholder="Paste text here, or load from a file. Then press Enter to split the text."
+          placeholder="Paste the chapter text here..."
         ></textarea>
         <div id="charCount">Total characters: 0</div>
+      </div>
+
+      <div class="trim-options">
+        <div class="input-group">
+            <label for="startMarker">Start trimming after this text/pattern:</label>
+            <input type="text" id="startMarker" placeholder="e.g., Chapter \d+">
+            <div class="regex-option">
+                <input type="checkbox" id="useStartRegex">
+                <label for="useStartRegex">Use RegEx</label>
+            </div>
+        </div>
+        <div class="input-group">
+            <label for="endMarker">End trimming before this text/pattern:</label>
+            <input type="text" id="endMarker" placeholder="e.g., (本章完)">
+            <div class="regex-option">
+                <input type="checkbox" id="useEndRegex">
+                <label for="useEndRegex">Use RegEx</label>
+            </div>
+        </div>
       </div>
 
       <div class="input-group">
@@ -173,32 +175,15 @@
         <input type="number" id="maxChars" value="1800" />
       </div>
 
-      <div class="input-group">
-        <label for="formatSelect">Format text:</label>
-        <select id="formatSelect">
-          <option value="as-is">Show text as is</option>
-          <option value="pretty">Pretty</option>
-        </select>
-      </div>
-      
       <button onclick="chunkText()" class="split-button">
-        Split Text
+        Clean and Split Text
       </button>
 
       <div id="chunkedTextContainer"></div>
     </div>
 
     <script>
-      let book;
-      let originalText = null;
       let lastClickedCopyButton = null;
-
-      function updateCharCount() {
-        const text = document.getElementById('chapterContent').value;
-        document.getElementById(
-          'charCount'
-        ).textContent = `Total characters: ${text.length}`;
-      }
 
       function copyToClipboard(text, button) {
         navigator.clipboard.writeText(text).then(() => {
@@ -213,118 +198,89 @@
 
         }).catch(err => {
           console.error('Failed to copy text:', err);
-          alert('Could not copy text.');
         });
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-        const maxCharsInput = document.getElementById('maxChars');
-        const formatSelect = document.getElementById('formatSelect');
-        const chapterContentTextArea = document.getElementById('chapterContent');
-
-        maxCharsInput.value = localStorage.getItem('maxChars') || '1800';
-
-        const savedFormat = localStorage.getItem('formatSelect');
-        if (savedFormat) {
-          formatSelect.value = savedFormat;
-        } else {
-          formatSelect.value = 'pretty';
-        }
-
-        maxCharsInput.addEventListener('input', () => {
-          localStorage.setItem('maxChars', maxCharsInput.value);
-        });
-        formatSelect.addEventListener('change', () => {
-          localStorage.setItem('formatSelect', formatSelect.value);
-          formatText();
-        });
-
-        chapterContentTextArea.addEventListener('input', updateCharCount);
-        
-        chapterContentTextArea.addEventListener('keydown', function (event) {
-          if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            chunkText();
-          }
-        });
-        updateCharCount();
-      });
-
-      document
-        .getElementById('epubInput')
-        .addEventListener('change', async function (event) {
-            // This logic is for loading EPUB and TXT files and remains the same.
-            const file = event.target.files[0];
-            if (!file) return;
-            const fileName = file.name.toLowerCase();
-            const tocContainer = document.getElementById('tocContainer');
-            try {
-                if (fileName.endsWith('.epub')) {
-                    tocContainer.style.display = 'block';
-                    book = ePub(file);
-                    const toc = await book.loaded.navigation;
-                    const tocList = document.createElement('ul');
-                    tocContainer.innerHTML = '';
-                    tocContainer.appendChild(tocList);
-                    toc.forEach(item => {
-                        const li = document.createElement('li');
-                        li.textContent = item.label.trim();
-                        li.dataset.href = item.href;
-                        li.onclick = loadChapter;
-                        tocList.appendChild(li);
-                    });
-                } else if (fileName.endsWith('.txt')) {
-                    tocContainer.style.display = 'none';
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        originalText = e.target.result;
-                        document.getElementById('chapterContent').value = originalText;
-                        formatText();
-                    };
-                    reader.readAsText(file);
-                } else {
-                    alert('Unsupported file type.');
-                }
-            } catch (error) {
-                console.error('Error loading file:', error);
-            }
-        });
-      
-      async function loadChapter(event) {
-          const selectedHref = event.target.dataset.href;
-          try {
-            const chapter = await book.load(selectedHref);
-            originalText = chapter.body.innerText.trim();
-            document.getElementById('chapterContent').value = originalText;
-            formatText();
-          } catch (error) {
-            console.error('Error loading chapter:', error);
-          }
       }
 
       function chunkText() {
-        const text = document.getElementById('chapterContent').value;
+        const chapterContentEl = document.getElementById('chapterContent');
+        const startMarker = document.getElementById('startMarker').value;
+        const useStartRegex = document.getElementById('useStartRegex').checked;
+        const endMarker = document.getElementById('endMarker').value;
+        const useEndRegex = document.getElementById('useEndRegex').checked;
+
+        let processedText = chapterContentEl.value;
+
+        if (startMarker) {
+            let startIndex = -1;
+            if (useStartRegex) {
+                try {
+                    const regex = new RegExp(startMarker, 's');
+                    const match = regex.exec(processedText);
+                    if (match) {
+                        startIndex = match.index + match[0].length;
+                    }
+                } catch (e) {
+                    alert('Invalid Start RegEx: ' + e.message);
+                    return;
+                }
+            } else {
+                const foundIndex = processedText.indexOf(startMarker);
+                if (foundIndex !== -1) {
+                    startIndex = foundIndex + startMarker.length;
+                }
+            }
+            if (startIndex !== -1) {
+                processedText = processedText.substring(startIndex);
+            }
+        }
+
+        if (endMarker) {
+            let endIndex = -1;
+            if (useEndRegex) {
+                try {
+                    const regex = new RegExp(endMarker, 's');
+                    const match = regex.exec(processedText);
+                    if (match) {
+                        endIndex = match.index;
+                    }
+                } catch (e) {
+                    alert('Invalid End RegEx: ' + e.message);
+                    return;
+                }
+            } else {
+                endIndex = processedText.indexOf(endMarker);
+            }
+            if (endIndex !== -1) {
+                processedText = processedText.substring(0, endIndex);
+            }
+        }
+        
+        chapterContentEl.value = processedText.trim();
+        updateCharCount(); 
+
         const maxChars = parseInt(document.getElementById('maxChars').value);
         const chunkedTextContainer = document.getElementById('chunkedTextContainer');
-
-        const paragraphs = text.split('\n');
+        const paragraphs = processedText.trim().split('\n');
         let chunks = [];
         let currentChunk = '';
 
         for (const paragraph of paragraphs) {
-          if (currentChunk.length > 0 && currentChunk.length + paragraph.length + 1 > maxChars) {
-            chunks.push(currentChunk.trim());
+          const trimmedParagraph = paragraph.trim();
+          if (trimmedParagraph.length === 0) continue;
+
+          if (currentChunk.length > 0 && currentChunk.length + trimmedParagraph.length + 1 > maxChars) {
+            chunks.push(currentChunk);
             currentChunk = '';
           }
-          currentChunk += (currentChunk ? '\n' : '') + paragraph;
+          currentChunk += (currentChunk ? '\n' : '') + trimmedParagraph;
         }
 
-        if (currentChunk.trim()) {
-          chunks.push(currentChunk.trim());
+        if (currentChunk) {
+          chunks.push(currentChunk);
         }
 
-        chunkedTextContainer.innerHTML = ''; // Clear previous results
-        lastClickedCopyButton = null; // Reset the last clicked button
+        chunkedTextContainer.innerHTML = '';
+        lastClickedCopyButton = null;
 
         chunks.forEach((chunk, index) => {
           const chunkContainer = document.createElement('div');
@@ -344,12 +300,11 @@
           const chunkTextarea = document.createElement('textarea');
           chunkTextarea.classList.add('chunk-textarea');
           chunkTextarea.value = chunk;
-          chunkTextarea.readOnly = true;
-
+          
           copyButton.addEventListener('click', () => copyToClipboard(chunkTextarea.value, copyButton));
           
           chunkHeader.appendChild(chunkTitle);
-          chunkHeader.appendChild(copyButton); // Add copy button to header
+          chunkHeader.appendChild(copyButton);
           chunkContainer.appendChild(chunkHeader);
           chunkContainer.appendChild(chunkTextarea);
 
@@ -357,26 +312,15 @@
         });
       }
 
-      function formatText() {
-        const formatSelect = document.getElementById('formatSelect');
-        const textArea = document.getElementById('chapterContent');
-        
-        if (!originalText) {
-            originalText = textArea.value;
-        }
-
-        if (formatSelect.value === 'pretty') {
-          const paragraphs = originalText.split('\n');
-          const formattedText = paragraphs
-            .map((p) => p.trim())
-            .filter((p) => p)
-            .join('\n\n');
-          textArea.value = formattedText;
-        } else {
-          textArea.value = originalText;
-        }
-        updateCharCount();
+      function updateCharCount() {
+        const text = document.getElementById('chapterContent').value;
+        document.getElementById('charCount').textContent = `Total characters: ${text.length}`;
       }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('chapterContent').addEventListener('input', updateCharCount);
+        updateCharCount();
+      });
     </script>
   </body>
 </html>
