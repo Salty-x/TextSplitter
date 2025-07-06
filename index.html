@@ -153,7 +153,7 @@
 
       <div class="trim-options">
         <div class="input-group">
-            <label for="startMarker">Start trimming after this text/pattern:</label>
+            <label for="startMarker">Start content at this text/pattern:</label>
             <input type="text" id="startMarker" placeholder="e.g., Chapter \d+">
             <div class="regex-option">
                 <input type="checkbox" id="useStartRegex">
@@ -161,7 +161,7 @@
             </div>
         </div>
         <div class="input-group">
-            <label for="endMarker">End trimming before this text/pattern:</label>
+            <label for="endMarker">End content before this text/pattern:</label>
             <input type="text" id="endMarker" placeholder="e.g., (本章完)">
             <div class="regex-option">
                 <input type="checkbox" id="useEndRegex">
@@ -210,24 +210,24 @@
 
         let processedText = chapterContentEl.value;
 
+        // --- CORRECTED Trimming Logic ---
         if (startMarker) {
             let startIndex = -1;
             if (useStartRegex) {
                 try {
-                    const regex = new RegExp(startMarker, 's');
+                    // NOTE: Removed the 's' (dotAll) flag to prevent '.*' from matching newlines
+                    const regex = new RegExp(startMarker); 
                     const match = regex.exec(processedText);
                     if (match) {
-                        startIndex = match.index + match[0].length;
+                        // Keep the matched text by starting from its index
+                        startIndex = match.index; 
                     }
                 } catch (e) {
                     alert('Invalid Start RegEx: ' + e.message);
                     return;
                 }
             } else {
-                const foundIndex = processedText.indexOf(startMarker);
-                if (foundIndex !== -1) {
-                    startIndex = foundIndex + startMarker.length;
-                }
+                startIndex = processedText.indexOf(startMarker);
             }
             if (startIndex !== -1) {
                 processedText = processedText.substring(startIndex);
@@ -238,7 +238,7 @@
             let endIndex = -1;
             if (useEndRegex) {
                 try {
-                    const regex = new RegExp(endMarker, 's');
+                    const regex = new RegExp(endMarker);
                     const match = regex.exec(processedText);
                     if (match) {
                         endIndex = match.index;
@@ -257,6 +257,8 @@
         
         chapterContentEl.value = processedText.trim();
         updateCharCount(); 
+        // --- End of Corrected Logic ---
+
 
         const maxChars = parseInt(document.getElementById('maxChars').value);
         const chunkedTextContainer = document.getElementById('chunkedTextContainer');
