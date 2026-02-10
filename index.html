@@ -28,16 +28,19 @@
       .input-group {
         margin-bottom: 20px;
       }
-      .input-group label {
-        display: block;
+      .input-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
         margin-bottom: 8px;
+      }
+      .input-row label {
         font-weight: bold;
         color: #555;
       }
-      input[type='file'],
       input[type='number'],
       input[type='text'],
-      select,
       textarea {
         padding: 10px 12px;
         border: 1px solid #ccc;
@@ -48,7 +51,7 @@
         font-family: 'Roboto', sans-serif;
       }
       textarea {
-        min-height: 100px;
+        min-height: 140px;
         resize: vertical;
       }
       #charCount {
@@ -57,15 +60,31 @@
         text-align: right;
         margin-top: 5px;
       }
-      .split-button {
-        padding: 10px 20px;
-        background-color: #28a745;
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 10px 14px;
         color: white;
         border: none;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 15px;
+        transition: filter 0.15s ease;
+        white-space: nowrap;
       }
+      .btn:hover {
+        filter: brightness(0.95);
+      }
+      .btn-paste {
+        background-color: #6f42c1;
+      }
+      .btn-split {
+        background-color: #28a745;
+      }
+
       #chunkedTextContainer {
         margin-top: 25px;
         border-top: 1px solid #eee;
@@ -83,32 +102,28 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
+        gap: 10px;
       }
       .chunk-title {
         font-weight: bold;
         font-size: 16px;
-        margin-right: 15px;
       }
       .copy-button {
-        padding: 5px 10px;
+        padding: 6px 10px;
         background-color: #007bff;
         color: white;
         border: none;
         border-radius: 4px;
         cursor: pointer;
         font-size: 14px;
-        transition: background-color 0.2s ease;
         flex-shrink: 0;
-      }
-      .copy-button:hover {
-        background-color: #0056b3;
       }
       .copy-button.copied {
         background-color: #218838;
       }
       .chunk-textarea {
         width: 100%;
-        height: 100px;
+        height: 110px;
         padding: 10px;
         font-size: 14px;
         line-height: 1.5;
@@ -123,50 +138,66 @@
         flex-wrap: wrap;
       }
       .trim-options .input-group {
-          flex-grow: 1;
-          min-width: 250px;
+        flex-grow: 1;
+        min-width: 250px;
       }
       .regex-option {
-          display: flex;
-          align-items: center;
-          margin-top: 8px;
-          font-size: 14px;
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 14px;
+        color: #555;
+        gap: 8px;
       }
       .regex-option input {
-          width: auto;
-          margin-right: 8px;
+        width: auto;
+        margin: 0;
+      }
+      .hint {
+        font-size: 12px;
+        color: #666;
+        margin-top: 6px;
       }
     </style>
   </head>
+
   <body>
     <div class="container">
       <h1>Text Cleaner & Chunker</h1>
 
       <div class="input-group">
-        <label for="chapterContent">Text Content:</label>
-        <textarea
-          id="chapterContent"
-          placeholder="Paste the chapter text here..."
-        ></textarea>
+        <div class="input-row">
+          <label for="chapterContent">Text Content:</label>
+          <div class="actions">
+            <button class="btn btn-paste" id="pasteBtn" type="button">Paste & Split</button>
+            <button class="btn btn-split" id="splitBtn" type="button">Clean and Split Text</button>
+          </div>
+        </div>
+
+        <textarea id="chapterContent" placeholder="Paste the chapter text here..."></textarea>
         <div id="charCount">Total characters: 0</div>
+        <div class="hint">
+          Tip: If the Paste button fails in your browser on a local file, it will ask you to paste manually.
+        </div>
       </div>
 
       <div class="trim-options">
         <div class="input-group">
-            <label for="startMarker">Start content at this text/pattern:</label>
-            <input type="text" id="startMarker" placeholder="e.g., Chapter \d+">
-            <div class="regex-option">
-                <input type="checkbox" id="useStartRegex">
-                <label for="useStartRegex">Use RegEx</label>
-            </div>
+          <label for="startMarker">Start content at this text/pattern:</label>
+          <input type="text" id="startMarker" placeholder="e.g., 第\\d+章[\\s\\S]*" />
+          <div class="regex-option">
+            <input type="checkbox" id="useStartRegex" />
+            <label for="useStartRegex">Use RegEx</label>
+          </div>
         </div>
+
         <div class="input-group">
-            <label for="endMarker">End content before this text/pattern:</label>
-            <input type="text" id="endMarker" placeholder="e.g., (本章完)">
-            <div class="regex-option">
-                <input type="checkbox" id="useEndRegex">
-                <label for="useEndRegex">Use RegEx</label>
-            </div>
+          <label for="endMarker">End content before this text/pattern:</label>
+          <input type="text" id="endMarker" placeholder="e.g., \\(本章完\\)" />
+          <div class="regex-option">
+            <input type="checkbox" id="useEndRegex" />
+            <label for="useEndRegex">Use RegEx</label>
+          </div>
         </div>
       </div>
 
@@ -175,10 +206,6 @@
         <input type="number" id="maxChars" value="1800" />
       </div>
 
-      <button onclick="chunkText()" class="split-button">
-        Clean and Split Text
-      </button>
-
       <div id="chunkedTextContainer"></div>
     </div>
 
@@ -186,19 +213,53 @@
       let lastClickedCopyButton = null;
 
       function copyToClipboard(text, button) {
-        navigator.clipboard.writeText(text).then(() => {
-          if (lastClickedCopyButton && lastClickedCopyButton !== button) {
-            lastClickedCopyButton.classList.remove('copied');
-            lastClickedCopyButton.textContent = 'Copy';
-          }
-          
-          button.textContent = 'Copied! ✔';
-          button.classList.add('copied');
-          lastClickedCopyButton = button;
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            if (lastClickedCopyButton && lastClickedCopyButton !== button) {
+              lastClickedCopyButton.classList.remove('copied');
+              lastClickedCopyButton.textContent = 'Copy';
+            }
+            button.textContent = 'Copied! ✔';
+            button.classList.add('copied');
+            lastClickedCopyButton = button;
+          })
+          .catch((err) => console.error('Failed to copy text:', err));
+      }
 
-        }).catch(err => {
-          console.error('Failed to copy text:', err);
-        });
+      function updateCharCount() {
+        const text = document.getElementById('chapterContent').value;
+        document.getElementById('charCount').textContent = `Total characters: ${text.length}`;
+      }
+
+      function getStartIndex(text, marker, useRegex) {
+        if (!marker) return -1;
+        if (useRegex) {
+          try {
+            const regex = new RegExp(marker);
+            const match = regex.exec(text);
+            return match ? match.index : -1; // keep the matched text
+          } catch (e) {
+            alert('Invalid Start RegEx: ' + e.message);
+            return null; // signal error
+          }
+        }
+        return text.indexOf(marker);
+      }
+
+      function getEndIndex(text, marker, useRegex) {
+        if (!marker) return -1;
+        if (useRegex) {
+          try {
+            const regex = new RegExp(marker);
+            const match = regex.exec(text);
+            return match ? match.index : -1; // end BEFORE matched text
+          } catch (e) {
+            alert('Invalid End RegEx: ' + e.message);
+            return null; // signal error
+          }
+        }
+        return text.indexOf(marker);
       }
 
       function chunkText() {
@@ -210,76 +271,39 @@
 
         let processedText = chapterContentEl.value;
 
-        // --- CORRECTED Trimming Logic ---
-        if (startMarker) {
-            let startIndex = -1;
-            if (useStartRegex) {
-                try {
-                    // NOTE: Removed the 's' (dotAll) flag to prevent '.*' from matching newlines
-                    const regex = new RegExp(startMarker); 
-                    const match = regex.exec(processedText);
-                    if (match) {
-                        // Keep the matched text by starting from its index
-                        startIndex = match.index; 
-                    }
-                } catch (e) {
-                    alert('Invalid Start RegEx: ' + e.message);
-                    return;
-                }
-            } else {
-                startIndex = processedText.indexOf(startMarker);
-            }
-            if (startIndex !== -1) {
-                processedText = processedText.substring(startIndex);
-            }
-        }
+        // Trim start
+        const startIndex = getStartIndex(processedText, startMarker, useStartRegex);
+        if (startIndex === null) return; // regex error
+        if (startIndex !== -1) processedText = processedText.substring(startIndex);
 
-        if (endMarker) {
-            let endIndex = -1;
-            if (useEndRegex) {
-                try {
-                    const regex = new RegExp(endMarker);
-                    const match = regex.exec(processedText);
-                    if (match) {
-                        endIndex = match.index;
-                    }
-                } catch (e) {
-                    alert('Invalid End RegEx: ' + e.message);
-                    return;
-                }
-            } else {
-                endIndex = processedText.indexOf(endMarker);
-            }
-            if (endIndex !== -1) {
-                processedText = processedText.substring(0, endIndex);
-            }
-        }
-        
-        chapterContentEl.value = processedText.trim();
-        updateCharCount(); 
-        // --- End of Corrected Logic ---
+        // Trim end
+        const endIndex = getEndIndex(processedText, endMarker, useEndRegex);
+        if (endIndex === null) return; // regex error
+        if (endIndex !== -1) processedText = processedText.substring(0, endIndex);
 
+        processedText = processedText.trim();
+        chapterContentEl.value = processedText;
+        updateCharCount();
 
-        const maxChars = parseInt(document.getElementById('maxChars').value);
+        // Split into chunks
+        const maxChars = parseInt(document.getElementById('maxChars').value, 10) || 1800;
         const chunkedTextContainer = document.getElementById('chunkedTextContainer');
-        const paragraphs = processedText.trim().split('\n');
+
+        const paragraphs = processedText.split('\n');
         let chunks = [];
         let currentChunk = '';
 
         for (const paragraph of paragraphs) {
-          const trimmedParagraph = paragraph.trim();
-          if (trimmedParagraph.length === 0) continue;
+          const trimmed = paragraph.trim();
+          if (!trimmed) continue;
 
-          if (currentChunk.length > 0 && currentChunk.length + trimmedParagraph.length + 1 > maxChars) {
+          if (currentChunk && currentChunk.length + trimmed.length + 1 > maxChars) {
             chunks.push(currentChunk);
             currentChunk = '';
           }
-          currentChunk += (currentChunk ? '\n' : '') + trimmedParagraph;
+          currentChunk += (currentChunk ? '\n' : '') + trimmed;
         }
-
-        if (currentChunk) {
-          chunks.push(currentChunk);
-        }
+        if (currentChunk) chunks.push(currentChunk);
 
         chunkedTextContainer.innerHTML = '';
         lastClickedCopyButton = null;
@@ -294,17 +318,17 @@
           const chunkTitle = document.createElement('div');
           chunkTitle.classList.add('chunk-title');
           chunkTitle.textContent = `Part ${index + 1} of ${chunks.length}`;
-          
+
           const copyButton = document.createElement('button');
           copyButton.classList.add('copy-button');
           copyButton.textContent = 'Copy';
-          
+
           const chunkTextarea = document.createElement('textarea');
           chunkTextarea.classList.add('chunk-textarea');
           chunkTextarea.value = chunk;
-          
+
           copyButton.addEventListener('click', () => copyToClipboard(chunkTextarea.value, copyButton));
-          
+
           chunkHeader.appendChild(chunkTitle);
           chunkHeader.appendChild(copyButton);
           chunkContainer.appendChild(chunkHeader);
@@ -314,13 +338,50 @@
         });
       }
 
-      function updateCharCount() {
-        const text = document.getElementById('chapterContent').value;
-        document.getElementById('charCount').textContent = `Total characters: ${text.length}`;
+      async function pasteAndSplit() {
+        const textarea = document.getElementById('chapterContent');
+
+        // Try modern clipboard read (may require HTTPS / localhost)
+        try {
+          if (navigator.clipboard && navigator.clipboard.readText) {
+            const text = await navigator.clipboard.readText();
+            textarea.value = text || '';
+          } else {
+            throw new Error('Clipboard API not available');
+          }
+        } catch (err) {
+          // Fallback: manual paste prompt
+          const manual = prompt('Clipboard read blocked by your browser.\nPaste your text here:');
+          if (manual === null) return; // cancelled
+          textarea.value = manual;
+        }
+
+        updateCharCount();
+        chunkText(); // auto split after paste button
       }
 
       document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('chapterContent').addEventListener('input', updateCharCount);
+        // ✅ Preset regex markers on every load
+        document.getElementById('startMarker').value = '第\\d+章[\\s\\S]*';
+        document.getElementById('endMarker').value = '\\(本章完\\)';
+        document.getElementById('useStartRegex').checked = true;
+        document.getElementById('useEndRegex').checked = true;
+
+        // Buttons
+        document.getElementById('pasteBtn').addEventListener('click', pasteAndSplit);
+        document.getElementById('splitBtn').addEventListener('click', chunkText);
+
+        // Auto split when user manually pastes into textarea
+        const textarea = document.getElementById('chapterContent');
+        textarea.addEventListener('input', updateCharCount);
+        textarea.addEventListener('paste', () => {
+          // wait for paste to apply, then split
+          setTimeout(() => {
+            updateCharCount();
+            chunkText();
+          }, 0);
+        });
+
         updateCharCount();
       });
     </script>
