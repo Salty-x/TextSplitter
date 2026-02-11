@@ -380,7 +380,7 @@
 
       document.addEventListener('DOMContentLoaded', () => {
         // Preset markers every time
-        document.getElementById('startMarker').value = '(?<=\d{4}-\d{2}-\d{2}[^\n]*\n\s*)第\d+章[^\n]*';
+        document.getElementById('startMarker').value = '(?<=\\d{4}-\\d{2}-\\d{2}[^\\n]*\\n\\s*)第\\d+章[^\\n]*';
         document.getElementById('endMarker').value = '\\(本章完\\)';
         document.getElementById('useStartRegex').checked = true;
         document.getElementById('useEndRegex').checked = true;
@@ -427,5 +427,6 @@
     </script>
   </body>
 </html>
+
 
 
