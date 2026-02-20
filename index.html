@@ -1,434 +1,566 @@
-A<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Text Cleaner & Chunker</title>
-    <style>
-      body {
-        font-family: 'Roboto', sans-serif;
-        margin: 0;
-        padding: 20px;
-        background-color: #f4f7f6;
-        color: #333;
-      }
-      .container {
-        max-width: 900px;
-        margin: 0 auto;
-        background-color: #fff;
-        padding: 30px;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        text-align: center;
-        color: #007bff;
-        margin-bottom: 30px;
-      }
-      .input-group {
-        margin-bottom: 20px;
-      }
-      .input-group label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-        color: #555;
-      }
-      input[type='file'],
-      input[type='number'],
-      input[type='text'],
-      select,
-      textarea {
-        padding: 10px 12px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 15px;
-        width: 100%;
-        box-sizing: border-box;
-        font-family: 'Roboto', sans-serif;
-      }
-      textarea {
-        min-height: 100px;
-        resize: vertical;
-      }
-      #charCount {
-        font-size: 13px;
-        color: #555;
-        text-align: right;
-        margin-top: 5px;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text Cleaner & Chunker · Copy all</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #eef2f5;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      width: 95%;
+      max-width: 1400px;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+      padding: 24px 28px;
+    }
+    h1 {
+      font-size: 1.9rem;
+      font-weight: 500;
+      margin: 0 0 20px 0;
+      color: #1a2b3c;
+      border-bottom: 2px solid #e9edf2;
+      padding-bottom: 16px;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #2c3e50;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    textarea, input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #d9e0e8;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      background: white;
+      transition: 0.15s;
+      font-family: inherit;
+    }
+    textarea:focus, input:focus {
+      border-color: #3b82f6;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 130px;
+      line-height: 1.5;
+    }
+    #charCount {
+      text-align: right;
+      font-size: 0.85rem;
+      color: #4b5563;
+      margin-top: 6px;
+    }
+    .button-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 15px 0 8px;
+    }
+    .paste-button, .split-button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.15s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .paste-button {
+      background: #8b5cf6;
+      color: white;
+    }
+    .paste-button:hover {
+      background: #7c3aed;
+      transform: scale(1.02);
+    }
+    .split-button {
+      background: #10b981;
+      color: white;
+    }
+    .split-button:hover {
+      background: #059669;
+      transform: scale(1.02);
+    }
+    .hint {
+      font-size: 0.85rem;
+      color: #5f6b7a;
+      background: #f8fafc;
+      padding: 10px 16px;
+      border-radius: 40px;
+      display: inline-block;
+    }
+    kbd {
+      background: #edf2f7;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-family: 'SF Mono', monospace;
+      font-weight: 600;
+      border: 1px solid #cbd5e0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    .marker-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .marker-item {
+      flex: 1 1 280px;
+    }
+    .regex-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+    .regex-option input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin: 0;
+    }
+    .bottom-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 24px;
+      margin: 24px 0 20px;
+    }
+    .max-chars {
+      flex: 0 0 200px;
+    }
+    .stats-card {
+      background: #f0f4fe;
+      border-radius: 40px;
+      padding: 10px 24px;
+      font-weight: 500;
+      color: #1e40af;
+      border: 1px solid #bdd3ff;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.05rem;
+    }
+    .stats-card span {
+      font-weight: 700;
+      background: white;
+      padding: 2px 12px;
+      border-radius: 40px;
+      margin-left: 6px;
+    }
+    /* New: copy all button */
+    .copy-all-row {
+      display: flex;
+      justify-content: flex-end;
+      margin: 10px 0 20px;
+    }
+    .copy-all-button {
+      background: #f97316;
+      color: white;
+      border: none;
+      padding: 10px 28px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: 0.15s;
+      box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .copy-all-button:hover {
+      background: #ea580c;
+      transform: scale(1.02);
+    }
+    .copy-all-button.copied {
+      background: #16a34a;
+    }
+    #chunkedTextContainer {
+      margin-top: 10px;
+      border-top: 2px dashed #cfddee;
+      padding-top: 24px;
+    }
+    .chunk-container {
+      background: #fafdff;
+      border: 1.5px solid #e2eaf2;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .chunk-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .chunk-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      background: #e6edf6;
+      padding: 6px 18px;
+      border-radius: 40px;
+      color: #1f3a6b;
+    }
+    .chunk-title small {
+      font-weight: 400;
+      font-size: 0.9rem;
+      color: #2c5282;
+      margin-left: 8px;
+    }
+    .copy-button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 8px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: 0.15s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .copy-button:hover {
+      background: #2563eb;
+    }
+    .copy-button.copied {
+      background: #16a34a;
+    }
+    .chunk-textarea {
+      width: 100%;
+      height: 130px;
+      padding: 16px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      border: 1.5px solid #dde5ed;
+      border-radius: 16px;
+      resize: vertical;
+      background: white;
+      font-family: inherit;
+    }
+    .under-5000-note {
+      background: #fef9c3;
+      border: 1px solid #facc15;
+      border-radius: 40px;
+      padding: 10px 20px;
+      margin: 10px 0 20px;
+      font-weight: 500;
+      color: #854d0e;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📄 Text Cleaner & Chunker</h1>
 
-      .button-row {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-top: 10px;
-      }
+  <div class="input-group">
+    <label for="chapterContent">📋 Text Content:</label>
+    <textarea id="chapterContent" placeholder="Paste your chapter text here..."></textarea>
+    <div id="charCount">Total characters: 0</div>
 
-      .split-button {
-        padding: 10px 20px;
-        background-color: #28a745;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-      }
-
-      .paste-button {
-        padding: 10px 20px;
-        background-color: #6f42c1;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 16px;
-      }
-
-      #chunkedTextContainer {
-        margin-top: 25px;
-        border-top: 1px solid #eee;
-        padding-top: 20px;
-      }
-      .chunk-container {
-        margin-bottom: 20px;
-        background-color: #fcfcfc;
-        border: 1px solid #eee;
-        border-radius: 4px;
-        padding: 15px;
-      }
-      .chunk-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-      .chunk-title {
-        font-weight: bold;
-        font-size: 16px;
-        margin-right: 15px;
-      }
-      .copy-button {
-        padding: 5px 10px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        transition: background-color 0.2s ease;
-        flex-shrink: 0;
-      }
-      .copy-button:hover {
-        background-color: #0056b3;
-      }
-      .copy-button.copied {
-        background-color: #218838;
-      }
-      .chunk-textarea {
-        width: 100%;
-        height: 100px;
-        padding: 10px;
-        font-size: 14px;
-        line-height: 1.5;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        resize: vertical;
-        background-color: #fff;
-      }
-      .trim-options {
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-      }
-      .trim-options .input-group {
-        flex-grow: 1;
-        min-width: 250px;
-      }
-      .regex-option {
-        display: flex;
-        align-items: center;
-        margin-top: 8px;
-        font-size: 14px;
-      }
-      .regex-option input {
-        width: auto;
-        margin-right: 8px;
-      }
-      .hint {
-        margin-top: 8px;
-        font-size: 12px;
-        color: #666;
-      }
-      kbd {
-        background: #f1f1f1;
-        border: 1px solid #ddd;
-        border-bottom-width: 2px;
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
-          "Courier New", monospace;
-        font-size: 12px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Text Cleaner & Chunker</h1>
-
-      <div class="input-group">
-        <label for="chapterContent">Text Content:</label>
-        <textarea
-          id="chapterContent"
-          placeholder="Paste the chapter text here..."
-        ></textarea>
-        <div id="charCount">Total characters: 0</div>
-
-        <div class="button-row">
-          <button id="pasteBtn" class="paste-button" type="button">
-            Paste & Split
-          </button>
-          <button id="splitBtn" class="split-button" type="button">
-            Clean and Split Text
-          </button>
-        </div>
-
-        <div class="hint">
-          Shortcuts: <kbd>Enter</kbd> (outside box) = Paste & Split • <kbd>Enter</kbd> (inside box) = Clean & Split • <kbd>Shift</kbd> + <kbd>Enter</kbd> = newline
-        </div>
-      </div>
-
-      <div class="trim-options">
-        <div class="input-group">
-          <label for="startMarker">Start content at this text/pattern:</label>
-          <input type="text" id="startMarker" placeholder="e.g., (?<=\d{4}-\d{2}-\d{2}[^\n]*\n\s*)第\d+章[^\n]*" />
-          <div class="regex-option">
-            <input type="checkbox" id="useStartRegex" />
-            <label for="useStartRegex">Use RegEx</label>
-          </div>
-        </div>
-        <div class="input-group">
-          <label for="endMarker">End content before this text/pattern:</label>
-          <input type="text" id="endMarker" placeholder="e.g., \\(本章完\\)" />
-          <div class="regex-option">
-            <input type="checkbox" id="useEndRegex" />
-            <label for="useEndRegex">Use RegEx</label>
-          </div>
-        </div>
-      </div>
-
-      <div class="input-group">
-        <label for="maxChars">Max characters per chunk:</label>
-        <input type="number" id="maxChars" value="1800" />
-      </div>
-
-      <div id="chunkedTextContainer"></div>
+    <div class="button-row">
+      <button id="pasteBtn" class="paste-button" type="button">📋 Paste & Split</button>
+      <button id="splitBtn" class="split-button" type="button">✨ Clean and Split Text</button>
     </div>
+    <div class="hint">
+      <kbd>Enter</kbd> (outside box) = Paste & Split •
+      <kbd>Enter</kbd> (inside box) = Clean & Split •
+      <kbd>Shift</kbd>+<kbd>Enter</kbd> = newline
+    </div>
+  </div>
 
-    <script>
-      let lastClickedCopyButton = null;
+  <div class="marker-row">
+    <div class="marker-item">
+      <label for="startMarker">▶ Start content at:</label>
+      <input type="text" id="startMarker" placeholder="e.g. (?<=\d{4}-\d{2}-\d{2}\n\s*)第\d+章" />
+      <div class="regex-option">
+        <input type="checkbox" id="useStartRegex" checked />
+        <label for="useStartRegex">Use RegEx (start pattern)</label>
+      </div>
+    </div>
+    <div class="marker-item">
+      <label for="endMarker">⏹ End content before:</label>
+      <input type="text" id="endMarker" placeholder="e.g. \(本章完\)" />
+      <div class="regex-option">
+        <input type="checkbox" id="useEndRegex" checked />
+        <label for="useEndRegex">Use RegEx (end pattern)</label>
+      </div>
+    </div>
+  </div>
 
-      function copyToClipboard(text, button) {
-        navigator.clipboard
-          .writeText(text)
-          .then(() => {
-            if (lastClickedCopyButton && lastClickedCopyButton !== button) {
-              lastClickedCopyButton.classList.remove('copied');
-              lastClickedCopyButton.textContent = 'Copy';
-            }
+  <div class="bottom-controls">
+    <div class="max-chars">
+      <label for="maxChars">📏 Max characters per chunk:</label>
+      <input type="number" id="maxChars" value="1800" min="100" step="100" />
+    </div>
+    <div class="stats-card" id="cleanedStats">
+      🧹 Cleaned length: <span id="cleanedLengthValue">0</span> chars
+    </div>
+  </div>
 
-            button.textContent = 'Copied! ✔';
-            button.classList.add('copied');
-            lastClickedCopyButton = button;
-          })
-          .catch((err) => {
-            console.error('Failed to copy text:', err);
-          });
-      }
+  <!-- Copy all chunks button appears after splitting -->
+  <div class="copy-all-row" id="copyAllRow" style="display: none;">
+    <button id="copyAllBtn" class="copy-all-button">📋 Copy all chunks (with separator)</button>
+  </div>
 
-      function updateCharCount() {
-        const text = document.getElementById('chapterContent').value;
-        document.getElementById('charCount').textContent = `Total characters: ${text.length}`;
-      }
+  <div id="chunkedTextContainer"></div>
+</div>
 
-      function safeBuildRegex(pattern) {
-        // No flags needed because you’re using [\s\S]* already.
-        return new RegExp(pattern);
-      }
+<script>
+  (function() {
+    // DOM elements
+    const chapterEl = document.getElementById('chapterContent');
+    const charCountSpan = document.getElementById('charCount');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const splitBtn = document.getElementById('splitBtn');
+    const startMarker = document.getElementById('startMarker');
+    const useStartRegex = document.getElementById('useStartRegex');
+    const endMarker = document.getElementById('endMarker');
+    const useEndRegex = document.getElementById('useEndRegex');
+    const maxCharsInput = document.getElementById('maxChars');
+    const cleanedLengthSpan = document.getElementById('cleanedLengthValue');
+    const chunkContainer = document.getElementById('chunkedTextContainer');
+    const copyAllRow = document.getElementById('copyAllRow');
+    const copyAllBtn = document.getElementById('copyAllBtn');
 
-      function chunkText() {
-        const chapterContentEl = document.getElementById('chapterContent');
-        const startMarker = document.getElementById('startMarker').value;
-        const useStartRegex = document.getElementById('useStartRegex').checked;
-        const endMarker = document.getElementById('endMarker').value;
-        const useEndRegex = document.getElementById('useEndRegex').checked;
+    // Preset markers
+    startMarker.value = '(?<=\\d{4}-\\d{2}-\\d{2}[^\\n]*\\n\\s*)第\\d+章[^\\n]*';
+    endMarker.value = '\\(本章完\\)';
 
-        let processedText = chapterContentEl.value;
+    let lastClickedCopyButton = null;
+    let lastClickedCopyAll = null;
 
-        // --- Trimming Logic (keeps matched start text, ends before end marker) ---
-        if (startMarker) {
-          let startIndex = -1;
-          if (useStartRegex) {
-            try {
-              const regex = safeBuildRegex(startMarker);
-              const match = regex.exec(processedText);
-              if (match) startIndex = match.index; // keep matched text
-            } catch (e) {
-              alert('Invalid Start RegEx: ' + e.message);
-              return;
-            }
-          } else {
-            startIndex = processedText.indexOf(startMarker);
-          }
-          if (startIndex !== -1) processedText = processedText.substring(startIndex);
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        if (lastClickedCopyButton && lastClickedCopyButton !== btn) {
+          lastClickedCopyButton.classList.remove('copied');
+          lastClickedCopyButton.textContent = 'Copy';
         }
+        btn.textContent = 'Copied! ✔';
+        btn.classList.add('copied');
+        lastClickedCopyButton = btn;
+      }).catch(() => alert('Could not copy text.'));
+    }
 
-        if (endMarker) {
-          let endIndex = -1;
-          if (useEndRegex) {
-            try {
-              const regex = safeBuildRegex(endMarker);
-              const match = regex.exec(processedText);
-              if (match) endIndex = match.index; // cut before marker
-            } catch (e) {
-              alert('Invalid End RegEx: ' + e.message);
-              return;
-            }
-          } else {
-            endIndex = processedText.indexOf(endMarker);
-          }
-          if (endIndex !== -1) processedText = processedText.substring(0, endIndex);
+    function copyAllToClipboard() {
+      const textareas = document.querySelectorAll('.chunk-textarea');
+      if (!textareas.length) return;
+      const chunks = Array.from(textareas).map(ta => ta.value);
+      const combined = chunks.join('\n\n---\n\n');  // separator
+      navigator.clipboard.writeText(combined).then(() => {
+        if (lastClickedCopyAll) {
+          lastClickedCopyAll.classList.remove('copied');
+          lastClickedCopyAll.textContent = '📋 Copy all chunks (with separator)';
         }
+        copyAllBtn.textContent = '✅ Copied all!';
+        copyAllBtn.classList.add('copied');
+        lastClickedCopyAll = copyAllBtn;
+      }).catch(() => alert('Failed to copy all chunks.'));
+    }
 
-        processedText = processedText.trim();
-        chapterContentEl.value = processedText;
-        updateCharCount();
-        // --- End trimming logic ---
+    function updateCharCount() {
+      charCountSpan.textContent = `Total characters: ${chapterEl.value.length}`;
+    }
 
-        const maxChars = parseInt(document.getElementById('maxChars').value, 10) || 1800;
-        const chunkedTextContainer = document.getElementById('chunkedTextContainer');
+    function safeBuildRegex(pattern) {
+      return new RegExp(pattern);
+    }
 
-        const paragraphs = processedText.split('\n');
-        let chunks = [];
-        let currentChunk = '';
+    function processAndChunk() {
+      let rawText = chapterEl.value;
 
-        for (const paragraph of paragraphs) {
-          const trimmedParagraph = paragraph.trim();
-          if (trimmedParagraph.length === 0) continue;
+      const startPat = startMarker.value;
+      const useStart = useStartRegex.checked;
+      const endPat = endMarker.value;
+      const useEnd = useEndRegex.checked;
 
-          if (
-            currentChunk.length > 0 &&
-            currentChunk.length + trimmedParagraph.length + 1 > maxChars
-          ) {
-            chunks.push(currentChunk);
-            currentChunk = '';
-          }
-          currentChunk += (currentChunk ? '\n' : '') + trimmedParagraph;
-        }
-
-        if (currentChunk) chunks.push(currentChunk);
-
-        chunkedTextContainer.innerHTML = '';
-        lastClickedCopyButton = null;
-
-        chunks.forEach((chunk, index) => {
-          const chunkContainer = document.createElement('div');
-          chunkContainer.classList.add('chunk-container');
-
-          const chunkHeader = document.createElement('div');
-          chunkHeader.classList.add('chunk-header');
-
-          const chunkTitle = document.createElement('div');
-          chunkTitle.classList.add('chunk-title');
-          chunkTitle.textContent = `Part ${index + 1} of ${chunks.length}`;
-
-          const copyButton = document.createElement('button');
-          copyButton.classList.add('copy-button');
-          copyButton.textContent = 'Copy';
-
-          const chunkTextarea = document.createElement('textarea');
-          chunkTextarea.classList.add('chunk-textarea');
-          chunkTextarea.value = chunk;
-
-          copyButton.addEventListener('click', () =>
-            copyToClipboard(chunkTextarea.value, copyButton)
-          );
-
-          chunkHeader.appendChild(chunkTitle);
-          chunkHeader.appendChild(copyButton);
-          chunkContainer.appendChild(chunkHeader);
-          chunkContainer.appendChild(chunkTextarea);
-
-          chunkedTextContainer.appendChild(chunkContainer);
-        });
-      }
-
-      async function pasteAndSplit() {
-        const el = document.getElementById('chapterContent');
+      if (startPat) {
         try {
-          // May be blocked on file:// in some browsers; button press helps but still depends on browser settings.
-          const text = await navigator.clipboard.readText();
-          el.value = text || '';
+          let idx = -1;
+          if (useStart) {
+            const regex = safeBuildRegex(startPat);
+            const match = regex.exec(rawText);
+            if (match) idx = match.index;
+          } else {
+            idx = rawText.indexOf(startPat);
+          }
+          if (idx !== -1) rawText = rawText.substring(idx);
         } catch (e) {
-          const manual = prompt('Clipboard read blocked. Paste your text here:');
-          if (manual === null) return;
-          el.value = manual;
+          alert('Invalid start pattern: ' + e.message);
+          return;
         }
-        updateCharCount();
-        chunkText();
       }
 
-      document.addEventListener('DOMContentLoaded', () => {
-        // Preset markers every time
-        document.getElementById('startMarker').value = '(?<=\\d{4}-\\d{2}-\\d{2}[^\\n]*\\n\\s*)第\\d+章[^\\n]*';
-        document.getElementById('endMarker').value = '\\(本章完\\)';
-        document.getElementById('useStartRegex').checked = true;
-        document.getElementById('useEndRegex').checked = true;
-
-        // Buttons
-        document.getElementById('pasteBtn').addEventListener('click', pasteAndSplit);
-        document.getElementById('splitBtn').addEventListener('click', chunkText);
-
-        // Counts
-        document.getElementById('chapterContent').addEventListener('input', updateCharCount);
-
-        // Auto split on manual paste (Ctrl+V)
-        document.getElementById('chapterContent').addEventListener('paste', () => {
-          setTimeout(() => {
-            updateCharCount();
-            chunkText();
-          }, 0);
-        });
-
-        // Enter shortcut:
-        // - If focus is inside textarea: Enter => chunkText (Shift+Enter keeps newline)
-        // - Elsewhere: Enter => pasteAndSplit
-        document.addEventListener('keydown', (e) => {
-          if (e.key !== 'Enter') return;
-
-          const active = document.activeElement;
-          const textarea = document.getElementById('chapterContent');
-          const inTextarea = active === textarea;
-
-          if (inTextarea) {
-            if (e.shiftKey) return; // allow newline
-            e.preventDefault();
-            chunkText();
-            return;
+      if (endPat) {
+        try {
+          let idx = -1;
+          if (useEnd) {
+            const regex = safeBuildRegex(endPat);
+            const match = regex.exec(rawText);
+            if (match) idx = match.index;
+          } else {
+            idx = rawText.indexOf(endPat);
           }
+          if (idx !== -1) rawText = rawText.substring(0, idx);
+        } catch (e) {
+          alert('Invalid end pattern: ' + e.message);
+          return;
+        }
+      }
 
-          // outside textarea
-          e.preventDefault();
-          document.getElementById('pasteBtn').click();
+      const cleaned = rawText.trim();
+      const cleanedLength = cleaned.length;
 
-        });
+      chapterEl.value = cleaned;
+      updateCharCount();
+      cleanedLengthSpan.textContent = cleanedLength;
 
-        updateCharCount();
+      const UNDER_LIMIT = 5000;
+      const maxChars = parseInt(maxCharsInput.value, 10) || 1800;
+
+      let chunks = [];
+      if (cleanedLength === 0) {
+        chunks = [];
+      } else if (cleanedLength < UNDER_LIMIT) {
+        chunks = [cleaned];
+      } else {
+        const paragraphs = cleaned.split('\n');
+        let current = '';
+        for (let p of paragraphs) {
+          const trimmed = p.trim();
+          if (!trimmed) continue;
+          if (current && (current.length + trimmed.length + 1 > maxChars)) {
+            chunks.push(current);
+            current = '';
+          }
+          current += (current ? '\n' : '') + trimmed;
+        }
+        if (current) chunks.push(current);
+      }
+
+      // Render chunks
+      chunkContainer.innerHTML = '';
+      lastClickedCopyButton = null;
+
+      if (chunks.length === 0) {
+        chunkContainer.innerHTML = '<div class="chunk-container" style="padding:30px; text-align:center;">✨ No content to display after cleaning.</div>';
+        copyAllRow.style.display = 'none';
+        return;
+      }
+
+      // Show "copy all" button
+      copyAllRow.style.display = 'flex';
+      copyAllBtn.classList.remove('copied');
+      copyAllBtn.textContent = '📋 Copy all chunks (with separator)';
+
+      // Optional under-5000 banner
+      if (cleanedLength < UNDER_LIMIT && cleanedLength > 0) {
+        const banner = document.createElement('div');
+        banner.className = 'under-5000-note';
+        banner.textContent = `📏 Text is under ${UNDER_LIMIT} characters (${cleanedLength} chars) — showing as single chunk.`;
+        chunkContainer.appendChild(banner);
+      }
+
+      chunks.forEach((chunk, index) => {
+        const container = document.createElement('div');
+        container.className = 'chunk-container';
+
+        const header = document.createElement('div');
+        header.className = 'chunk-header';
+
+        const title = document.createElement('div');
+        title.className = 'chunk-title';
+        title.innerHTML = `Part ${index + 1} of ${chunks.length} <small>(${chunk.length} chars)</small>`;
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-button';
+        copyBtn.textContent = 'Copy';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'chunk-textarea';
+        textarea.value = chunk;
+        textarea.readOnly = false; // keep editable
+
+        copyBtn.addEventListener('click', () => copyToClipboard(textarea.value, copyBtn));
+
+        header.appendChild(title);
+        header.appendChild(copyBtn);
+        container.appendChild(header);
+        container.appendChild(textarea);
+        chunkContainer.appendChild(container);
       });
-    </script>
-  </body>
+    }
+
+    async function pasteAndProcess() {
+      try {
+        const text = await navigator.clipboard.readText();
+        chapterEl.value = text || '';
+      } catch (e) {
+        const manual = prompt('Clipboard access blocked. Paste your text below:');
+        if (manual === null) return;
+        chapterEl.value = manual;
+      }
+      updateCharCount();
+      processAndChunk();
+    }
+
+    // Event listeners
+    chapterEl.addEventListener('input', updateCharCount);
+    pasteBtn.addEventListener('click', pasteAndProcess);
+    splitBtn.addEventListener('click', processAndChunk);
+    copyAllBtn.addEventListener('click', copyAllToClipboard);
+
+    chapterEl.addEventListener('paste', () => {
+      setTimeout(() => {
+        updateCharCount();
+        processAndChunk();
+      }, 0);
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const active = document.activeElement;
+      const inTextarea = active === chapterEl;
+
+      if (inTextarea) {
+        if (e.shiftKey) return;
+        e.preventDefault();
+        processAndChunk();
+      } else {
+        e.preventDefault();
+        pasteBtn.click();
+      }
+    });
+
+    // Initial count
+    updateCharCount();
+    copyAllRow.style.display = 'none'; // hidden initially
+  })();
+</script>
+</body>
 </html>
-
-
-
-
